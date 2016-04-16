@@ -12,7 +12,8 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- * ************************************************************************/
+ * ***********************************************************************
+*/
 
 #ifndef HDKPLUGIN_SOPANISOTROPICMATRIX_H_
 #define HDKPLUGIN_SOPANISOTROPICMATRIX_H_
@@ -32,19 +33,63 @@
 #include "GU/GU_PrimSphere.h"
 #include "UT/UT_Matrix3.h"
 
+#include <GU/GU_PrimPacked.h>
+
+// for threading
+#include <UT/UT_ParallelUtil.h>
+#include <GA/GA_PageIterator.h>
+#include <GA/GA_PageHandle.h>
+#include <UT/UT_LockUtil.h>
+
 namespace HDK_AMPlugins {
 
 class SOP_AnisotropyMatrix : public SOP_Node
 {
-public:
-  SOP_AnisotropyMatrix(OP_Network *, const char *, OP_Operator *);
-  virtual ~SOP_AnisotropyMatrix();
-  static OP_Node *myConstructor(OP_Network *, const char *, OP_Operator *);
-public:
-  static PRM_Template myTemplateList[];
+    public:
+      SOP_AnisotropyMatrix(OP_Network *, const char *, OP_Operator *);
+      virtual ~SOP_AnisotropyMatrix();
+      static OP_Node *myConstructor(OP_Network *, const char *, OP_Operator *);
+    public:
+      static PRM_Template myTemplateList[];
 
-protected:
-  virtual OP_ERROR cookMySop(OP_Context &);
+    protected:
+      virtual OP_ERROR cookMySop(OP_Context &);
+};
+
+class covarianceMatrixTask {
+    public:
+        covarianceMatrixTask(   GU_Detail *myParticleGdp, GA_Attribute *attr_particle_p,
+                                fpreal &smoothing_kernel_radius,
+                                fpreal &search_radius,
+                                fpreal &scale_addition,
+                                unsigned particles_threshold, unsigned use_tree_attr,
+                                // GEO_PointTreeGAOffset &point_tree,
+                                GA_Attribute *attr_geo_amtx):
+
+        myParticleGdp(myParticleGdp),
+        attr_particle_p(attr_particle_p),
+        smoothing_kernel_radius(smoothing_kernel_radius),
+        search_radius(search_radius),
+        scale_addition(scale_addition),
+        particles_threshold(particles_threshold),
+        use_tree_attr(use_tree_attr),
+        // point_tree(point_tree),
+        attr_geo_amtx(attr_geo_amtx)
+        
+    {}
+
+    void operator()(const GA_SplittableRange &sr) const;
+
+    private:
+        GU_Detail *myParticleGdp;
+        GA_Attribute *attr_particle_p;
+        fpreal &smoothing_kernel_radius;
+        fpreal &search_radius;
+        fpreal &scale_addition;
+        unsigned particles_threshold;
+        unsigned use_tree_attr;
+        // GEO_PointTreeGAOffset &point_tree;
+        GA_Attribute *attr_geo_amtx;
 };
 
 } // HDK_AMPlugins namespace
