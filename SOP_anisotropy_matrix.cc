@@ -21,12 +21,12 @@ using namespace HDK_AMPlugins;
 void
 newSopOperator(OP_OperatorTable *table)
 {
-  table->addOperator(new OP_Operator("hdk_anisotropy_matrix",
+  table->addOperator(new OP_Operator("anisotropy_matrix",
                                      "AnisotropyMatrix",
                                      SOP_AnisotropyMatrix::myConstructor,
                                      SOP_AnisotropyMatrix::myTemplateList,
-                                     2,
-                                     2,
+                                     1,
+                                     1,
                                      0));
 }
 
@@ -67,28 +67,36 @@ SOP_AnisotropyMatrix::SOP_AnisotropyMatrix(OP_Network *net,
 : SOP_Node(net, name, op) {}
 
 SOP_AnisotropyMatrix::~SOP_AnisotropyMatrix() {}
+/*
+GU_Detail 
+SOP_AnisotropyMatrix::newSphere()
+{
+    GU_Detail   mygdp;
+    GA_Offset ptoff = gdp->appendPoint();
+    GU_PrimSphereParms parms(mygdp, ptoff);
+    parms.freq = 2;
+    parms.type = GEO_PATCH_TRIANGLE;
+    parms.xform.scale(0.2,0.2,0.2);
+    GEO_PrimSphere* sphere = (GEO_PrimSphere*) GU_PrimSphere::build(parms);
+    return mygdp;
+}*/
 
 OP_ERROR
 SOP_AnisotropyMatrix::cookMySop(OP_Context &context)
 {
-  if (lockInputs(context) >= UT_ERROR_ABORT)
-    return error();
+    if (lockInputs(context) >= UT_ERROR_ABORT)
+        return error();
 
-  setupLocalVars();
+    setupLocalVars();
 
-  if (error() < UT_ERROR_ABORT) {
+    if (error() < UT_ERROR_ABORT) 
+    {
     UT_AutoInterrupt progress("Calculating matrices");
 
     GU_Detail *particles_gdp = (GU_Detail *)inputGeo(0, context);
-    GU_Detail *geometry_gdp = (GU_Detail *)inputGeo(1, context);
+    //GU_Detail *geometry_gdp = (GU_Detail *)inputGeo(1, context);
 
     gdp->clearAndDestroy();
-    GU_Detail gdp_dublicate(true);
-    gdp_dublicate.copy(*geometry_gdp,
-                       GEO_COPY_ONCE,
-                       false,
-                       true,
-                       GA_DATA_ID_BUMP);
 
     // MATRIX ATTRIBUTES
     fpreal smoothing_kernel_radius = evalFloat("kernel", 0, 0);
@@ -102,21 +110,22 @@ SOP_AnisotropyMatrix::cookMySop(OP_Context &context)
     GA_Size p_pts = particles_gdp->getNumPoints();
 
     for (unsigned ii=0; ii<p_pts; ii++) {
-      UT_Vector3 particle_pos = particles_gdp->getPos3(ii);
+    UT_Vector3 particle_pos = particles_gdp->getPos3(ii);
 
-      // Close particles indices
-      GEO_PointTreeGAOffset::IdxArrayType close_particles_indices;
-      tree.findAllCloseIdx(particle_pos, 
-                           search_radius,
-                           close_particles_indices);
+    // Close particles indices
+    GEO_PointTreeGAOffset::IdxArrayType close_particles_indices;
+    tree.findAllCloseIdx(particle_pos, 
+    search_radius,
+    close_particles_indices);
 
-      // NOTE from HDK 13:
-      // entries() will be renamed to size() in a future version
-      unsigned close_particles_count = close_particles_indices.entries();
+    // NOTE from HDK 13:
+    // entries() will be renamed to size() in a future version
+    unsigned close_particles_count = close_particles_indices.entries();
 
-      UT_Matrix3 anisotropy_matrix;
+    UT_Matrix3 anisotropy_matrix;
 
-      if (close_particles_count > 0) {
+    if (close_particles_count > 0) 
+        {
 
         // Calculation of weighted mean
         UT_Vector3 weighted_mean(0, 0, 0);
@@ -124,31 +133,34 @@ SOP_AnisotropyMatrix::cookMySop(OP_Context &context)
         fpreal weighting_function = 0;
         UT_Vector3 weighted_position(0, 0, 0);
 
-        for (unsigned i = 0; i < close_particles_count; i++) {
-          UT_Vector3 close_particle_pos = 
-          particles_gdp->getPos3(close_particles_indices(i));
+        for (unsigned i = 0; i < close_particles_count; i++) 
+        {
+            UT_Vector3 close_particle_pos = 
+            particles_gdp->getPos3(close_particles_indices(i));
 
-          UT_Vector3 distance = particle_pos - close_particle_pos;
-          weight = 1 - std::pow((distance.length() / search_radius), 3);
+            UT_Vector3 distance = particle_pos - close_particle_pos;
+            weight = 1 - std::pow((distance.length() / search_radius), 3);
 
-          weighting_function += weight;
-          weighted_position += close_particle_pos * weight;
+            weighting_function += weight;
+            weighted_position += close_particle_pos * weight;
         }
 
         if (weighting_function != 0)
-          weighted_mean = weighted_position/weighting_function;
+            weighted_mean = weighted_position/weighting_function;
         else
-          weighted_mean = weighted_position;
+            weighted_mean = weighted_position;
 
         // Calculation of covariance matrix and SVD -- example code provided by ndickson, thank you!
         UT_Matrix3D covariance_matrix(0); 
-        for (unsigned i = 0; i < close_particles_count; i++) { 
+        for (unsigned i = 0; i < close_particles_count; i++) 
+        { 
             UT_Vector3 close_particle_pos = 
-                particles_gdp->getPos3(close_particles_indices(i)); 
+            particles_gdp->getPos3(close_particles_indices(i)); 
             UT_Vector3 weighted_distance = close_particle_pos - weighted_mean; 
             UT_Vector3 distance = particle_pos - close_particle_pos; 
             weight = 1 - std::pow((distance.length() / search_radius), 3); 
             UT_Vector3 weighted = weight * weighted_distance; 
+
             // Only 6 unique components, since symmetric 
             covariance_matrix(0,0) += weighted(0)*weighted_distance(0); 
             covariance_matrix(0,1) += weighted(0)*weighted_distance(1); 
@@ -177,13 +189,12 @@ SOP_AnisotropyMatrix::cookMySop(OP_Context &context)
 
         // Particles threshold
         if (close_particles_count > particles_threshold) {
-          for (unsigned i = 0; i < 3; i++)
-            eigen_values_vector(i) = 2 * eigen_values_vector(i) +
-                                     scale_addition;
+            for (unsigned i = 0; i < 3; i++)
+                eigen_values_vector(i) = 2 * eigen_values_vector(i) + scale_addition;
         } else {
-          eigen_values_vector(0) =
-          eigen_values_vector(1) =
-          eigen_values_vector(2) = 1;
+            eigen_values_vector(0) =
+            eigen_values_vector(1) =
+            eigen_values_vector(2) = 1;
         }
 
         // Convert to HDK matrices
@@ -207,29 +218,36 @@ SOP_AnisotropyMatrix::cookMySop(OP_Context &context)
 
         // Compose anisotropy matrix
         anisotropy_matrix = rotation_matrix_hdk *
-                            eigen_values_matrix_hdk *
-                            rotation_matrix_transpose_hdk;
+        eigen_values_matrix_hdk *
+        rotation_matrix_transpose_hdk;
         anisotropy_matrix *= 1 / smoothing_kernel_radius;
-      }
+    }
 
-      // Calculate new transormations for dublicate geometry
-      GA_Size g_pts = geometry_gdp->getNumPoints();
+    // Create a sphere detail, rather than copying from the second input
+    GU_Detail   *geometry_gdp = new GU_Detail;
+    GA_Offset tptoff = geometry_gdp->appendPoint();
+    GU_PrimSphereParms parms(geometry_gdp, tptoff);
+    parms.freq = 2;
+    parms.type = GEO_PATCH_TRIANGLE;
+    parms.xform.scale(0.2,0.2,0.2);
+    (GEO_PrimSphere*) GU_PrimSphere::build(parms, GEO_PRIMPOLY);
 
-
-    for (unsigned ee=0; ee < g_pts; ee++) {
-      UT_Vector3 geometry_pos = geometry_gdp->getPos3(ee);
-      if (close_particles_count > 0)
-        geometry_pos.colVecMult(anisotropy_matrix);
-
-      gdp_dublicate.setPos3(ee, geometry_pos + particle_pos);
+    // Apply transform for each point to a sphere
+    GA_Offset       optoff;
+    GA_FOR_ALL_PTOFF(geometry_gdp, optoff)
+    {
+        UT_Vector3 geometry_pos = geometry_gdp->getPos3(optoff);
+        if (close_particles_count > 0)
+            geometry_pos.colVecMult(anisotropy_matrix);
+         geometry_gdp->setPos3(optoff,geometry_pos + particle_pos);
     }
 
     // Add geometry copy to final geometry
-    gdp->copy(gdp_dublicate,
-              GEO_COPY_ADD,
-              true,
-              true,
-              GA_DATA_ID_BUMP);
+    gdp->copy(  *geometry_gdp,
+                GEO_COPY_ADD,
+                true,
+                true,
+                GA_DATA_ID_BUMP);
 
     }
   }
