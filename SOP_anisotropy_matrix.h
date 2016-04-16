@@ -28,6 +28,9 @@
 #include <PRM/PRM_Include.h>
 #include <GU/GU_Detail.h>
 #include <GEO/GEO_PointTree.h>
+#include "GEO/GEO_PrimPoly.h"
+#include "GU/GU_PrimSphere.h"
+#include "UT/UT_Matrix3.h"
 
 namespace HDK_AMPlugins {
 
