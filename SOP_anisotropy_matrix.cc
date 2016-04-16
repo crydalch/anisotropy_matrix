@@ -179,7 +179,8 @@ operator()(const GA_SplittableRange &sr) const
                     if (close_particles_count > particles_threshold) {
                         for (unsigned i = 0; i < 3; i++)
                             eigen_values_vector(i) = 2 * eigen_values_vector(i) + scale_addition;
-                    } else {
+                    } 
+                    else {
                         eigen_values_vector(0) =
                         eigen_values_vector(1) =
                         eigen_values_vector(2) = 1;
@@ -313,7 +314,8 @@ SOP_AnisotropyMatrix::cookMySop(OP_Context &context)
                                             attr_geo_amtx);
         //covarianceMatrixTask threadedCMtask(particles_gdp_orig);
 
-        UTserialFor(sr,threadedCMtask);
+        //UTserialFor(sr,threadedCMtask);
+        UTparallelForLightItems(sr,threadedCMtask);
 
         gdp->copy( *particles_gdp_orig,
                     GEO_COPY_ADD,
