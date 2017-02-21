@@ -40,6 +40,7 @@
 #include <GA/GA_PageIterator.h>
 #include <GA/GA_PageHandle.h>
 #include <UT/UT_LockUtil.h>
+#include <UT/UT_Lock.h>
 
 namespace HDK_AMPlugins {
 
@@ -58,23 +59,23 @@ class SOP_AnisotropyMatrix : public SOP_Node
 
 class covarianceMatrixTask {
     public:
-        covarianceMatrixTask(   GU_Detail *myParticleGdp, GA_Attribute *attr_particle_p,
+        covarianceMatrixTask(   GU_Detail *myParticleGdp, GU_Detail *newSphereGdp,/* GA_Attribute *attr_particle_p,*/
                                 fpreal &smoothing_kernel_radius,
                                 fpreal &search_radius,
                                 fpreal &scale_addition,
-                                unsigned particles_threshold, unsigned use_tree_attr,
-                                // GEO_PointTreeGAOffset &point_tree,
-                                GA_Attribute *attr_geo_amtx):
+                                unsigned particles_threshold,
+                                UT_AutoInterrupt &boss,
+                                unsigned write_attr_only):
 
         myParticleGdp(myParticleGdp),
-        attr_particle_p(attr_particle_p),
+        newSphereGdp(newSphereGdp),
+        /*attr_particle_p(attr_particle_p),*/
         smoothing_kernel_radius(smoothing_kernel_radius),
         search_radius(search_radius),
         scale_addition(scale_addition),
         particles_threshold(particles_threshold),
-        use_tree_attr(use_tree_attr),
-        // point_tree(point_tree),
-        attr_geo_amtx(attr_geo_amtx)
+        boss(boss),
+        write_attr_only(write_attr_only)
         
     {}
 
@@ -82,14 +83,14 @@ class covarianceMatrixTask {
 
     private:
         GU_Detail *myParticleGdp;
-        GA_Attribute *attr_particle_p;
+        GU_Detail *newSphereGdp;
+        /*GA_Attribute *attr_particle_p;*/
         fpreal &smoothing_kernel_radius;
         fpreal &search_radius;
         fpreal &scale_addition;
         unsigned particles_threshold;
-        unsigned use_tree_attr;
-        // GEO_PointTreeGAOffset &point_tree;
-        GA_Attribute *attr_geo_amtx;
+        UT_AutoInterrupt &boss;
+        unsigned write_attr_only;
 };
 
 } // HDK_AMPlugins namespace
